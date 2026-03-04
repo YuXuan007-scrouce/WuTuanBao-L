@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace等于mapper接口类的全限定名,这样实现对应 -->
+<mapper namespace="com.yuxuan.mapper.UserOrderMapper">
+
+
+    <select id="selectPendingPayOrder" resultType="com.yuxuan.entity.vo.PendingPayOrderVO">
+        SELECT
+        uo.order_no          AS orderNo,
+        uo.pay_amount        AS payAmount,
+        uo.total_amount      AS totalAmount,
+        uo.quantity          AS quantity,
+        uo.created_time      AS createTime,
+        uo.status            AS status,
+
+        gd.title             AS dealTitle,
+        gd.images            AS dealImage,
+        gd.original_price    AS originalPrice,
+        gd.deal_price        AS dealPrice,
+        gd.tags              AS tags,
+        gd.valid_time_desc   AS validTimeDesc,
+
+        m.cover_image            AS coverImage,
+        m.name               AS merchantName,
+        m.address            AS merchantAddress,
+        m.business_hours     AS businessHours,
+        m.phone              AS merchantPhone,
+        m.longitude          AS longitude,
+        m.latitude           AS latitude
+
+        FROM user_order uo
+        LEFT JOIN group_deal gd ON uo.deal_id = gd.id
+        LEFT JOIN merchant m ON uo.merchant_id = m.id
+        WHERE uo.order_no = #{orderNo}
+        AND uo.user_id = #{userId}
+    </select>
+</mapper>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace等于mapper接口类的全限定名,这样实现对应 -->
+<mapper namespace="com.yuxuan.mapper.BCommentMapper">
+
+
+    <select id="queryComments" resultType="com.yuxuan.dto.BCommentDTO">
+        SELECT
+        tbc.id,
+        tbc.blog_id            AS blogId,
+        tbc.user_id            AS userId,
+        tbc.content,
+        tbc.parent_id          AS parentId,
+        tbc.reply_to_user_id   AS replyToUserId,
+        tbc.like_count         AS likeCount,
+        tbc.create_time        AS createTime,
+        tbc.address,
+        tu.nick_name           AS userName,
+        tu.icon                AS userAvatar
+        FROM tb_blog_comment tbc
+        INNER JOIN tb_user tu ON tu.id = tbc.user_id
+        WHERE tbc.blog_id = #{blogId}
+    </select>
+
+</mapper>

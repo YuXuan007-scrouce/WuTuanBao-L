@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace等于mapper接口类的全限定名,这样实现对应 -->
+<mapper namespace="com.yuxuan.mapper.UserCouponMapper">
+
+    <!--
+      乐观锁锁定优惠券：
+      1. 确认是该用户的券
+      2. 状态必须是 0（未使用）
+      3. 未过期
+      4. version乐观锁防并发
+  -->
+    <update id="lockCoupon">
+        UPDATE user_coupon
+        SET
+        status = 1,
+        version = version + 1
+        WHERE
+        user_id = #{userId}
+        AND coupon_id = #{couponId}
+        AND status = 0
+        AND version = (SELECT uc.version FROM (SELECT version FROM user_coupon
+        WHERE user_id = #{userId}
+        AND coupon_id = #{couponId}) AS uc)
+        AND expire_time > NOW()
+    </update>
+<!--查询优惠卷面额-->
+    <select id="queryCoupon" resultType="java.math.BigDecimal">
+        select
+        coupon_amount
+        from user_coupon
+        where user_id = #{userId}
+        and coupon_id = #{couponId}
+    </select>
+</mapper>

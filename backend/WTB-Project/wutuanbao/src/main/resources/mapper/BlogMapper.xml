@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace等于mapper接口类的全限定名,这样实现对应 -->
+<mapper namespace="com.yuxuan.mapper.BlogMapper">
+    <insert id="createNote"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tb_blog (user_id,title, content, images, address, create_time)
+        VALUES (#{userId},#{title}, #{content}, #{images}, #{address}, #{createTime})
+    </insert>
+
+
+    <select id="queryLikedById" resultType="java.lang.Integer">
+        select liked from tb_blog
+        where id = #{id}
+    </select>
+    <select id="queryCollectionById" resultType="java.lang.Integer">
+        select collection from tb_blog
+        where id = #{id}
+    </select>
+
+    <select id="queryMyFollowBlog" resultType="com.yuxuan.dto.BlogWithAuthorDTO">
+        SELECT
+        b.id AS blogId,
+        b.title,
+        b.images,
+        b.create_time AS createTime,
+        b.liked AS liked,
+        u.icon AS authorAvatar,
+        u.nick_name AS authorName
+        FROM tb_blog b
+        LEFT JOIN tb_user u ON b.user_id = u.id
+        WHERE b.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY FIELD(b.id,
+        <foreach collection="ids" item="id" separator=",">
+            #{id}
+        </foreach>
+        )
+    </select>
+</mapper>

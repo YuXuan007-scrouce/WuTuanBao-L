@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace等于mapper接口类的全限定名,这样实现对应 -->
+<mapper namespace="com.yuxuan.mapper.ShopListMapper">
+
+
+    <select id="queryMDetail" resultType="com.yuxuan.dto.MerchantDTO">
+        select
+        m.id,
+        m.name,
+        m.images,
+        m.rating,
+        m.total_reviews   as totalReviews,
+        m.avg_price       as avgPrice,
+        m.category,
+        m.address,
+        m.base_tags       as baseTags,
+        mt.custom_value   as customValue
+        from merchant m
+        left join merchant_tag mt
+        on m.id = mt.merchant_id
+        where m.id = #{id}
+    </select>
+    <select id="queryGroup" resultType="com.yuxuan.dto.GroupDealDTO">
+        select
+        id,
+        title,
+        images,
+        valid_time_desc as validTimeDesc,
+        sold_count as soldCount,
+        deal_price as dealPrice,
+        original_price as originalPrice,
+        discount
+        from group_deal
+        where merchant_id = #{id};
+    </select>
+    <select id="queryComment" resultType="com.yuxuan.dto.MCommentDTO">
+        SELECT
+        mc.id as id,
+        mc.user_id,
+        tu.nick_name,
+        tu.icon as userIcon,
+        mc.content as content,
+        mc.create_time as createTime,
+        mc.like_count likeCount,
+        mc.rating
+        FROM merchant_comment mc
+        LEFT JOIN tb_user tu
+        ON mc.user_id = tu.id
+        WHERE mc.merchant_id = #{merchantId}
+        AND mc.parent_id IS NULL
+        ORDER BY
+        mc.rating DESC,
+        mc.create_time DESC
+        LIMIT 3;
+    </select>
+    <select id="queryCoupon" resultType="com.yuxuan.dto.MCouponDTO">
+        SELECT
+        mc.id,
+        mc.name,
+        mc.actual_value AS actualValue,
+        mc.begin_time,
+        mc.rules,
+        IF(uc.user_id IS NULL, FALSE, TRUE) AS userReceived
+        FROM merchant_coupon mc
+        LEFT JOIN user_coupon uc
+        ON mc.id = uc.coupon_id
+        AND uc.user_id = #{userId}
+        WHERE mc.merchant_id = #{merchantId}
+    </select>
+    <select id="queryGroupProduct" resultType="com.yuxuan.dto.GroupPayDTO">
+        select
+        id,
+        merchant_id AS merchantId,
+        title,
+        images,
+        original_price AS originalPrice,
+        deal_price AS dealPrice,
+        tags,
+        valid_time_desc AS validTimeDesc
+        from group_deal
+        where id = #{id}
+    </select>
+    <select id="queryUserCoupon" resultType="com.yuxuan.dto.UserCouponDTO">
+        select
+        uc.id,
+        uc.coupon_id couponId,
+        uc.merchant_id merchantId,
+        uc.coupon_amount couponAmount,
+        mc.name,
+        mc.rules
+        from user_coupon uc
+        left join merchant_coupon mc
+        on uc.merchant_id = mc.id
+        where  mc.id = #{merchantId}
+        and uc.user_id = #{userId}
+    </select>
+    <select id="selectAllMerchantIds" resultType="java.lang.Long">
+        select
+        id
+        from merchant
+    </select>
+
+</mapper>
