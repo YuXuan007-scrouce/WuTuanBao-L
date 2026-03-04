@@ -1,0 +1,48 @@
+server:
+  port: 8089
+spring:
+  application:
+    name: wtb
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:13306/HeiMa?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: Xxxxx
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    lettuce:
+      pool:
+        max-active: 10
+        max-idle: 10
+        min-idle: 0
+        time-between-eviction-runs: 10s
+  jackson:
+    default-property-inclusion: non_null # JSON处理时忽略非空字段
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: yuxuan
+    password: Xxxxx
+    virtual-host: /
+    listener:
+      simple:
+        prefetch: 1     #每次消费者只处理1条
+        acknowledge-mode: manual   # 改为手动确认，延迟队列场景更可靠
+        retry:
+          enabled: true
+          initial-interval: 1000
+          multiplier: 3
+          max-attempts: 4
+mybatis-plus:
+  type-aliases-package: com.yuxuan.entity # 别名扫描包
+logging:
+  level:
+    com.hmdp: debug
+
+# MinIO 配置
+minio:
+  endpoint: http://localhost:9000          # MinIO 服务地址
+  access-key: minioadmin              # 访问密钥
+  secret-key: Xxxxx              # 秘密密钥
+  bucket-name: dp-reconsitution             # 桶名称
