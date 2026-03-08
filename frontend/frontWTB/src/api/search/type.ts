@@ -36,3 +36,6 @@ export interface SearchParams {
   near?: number;     //附近
 }
 
+
+// 接收后端响应的"词条补全"
+export type SearchSuggestionResult = string[];

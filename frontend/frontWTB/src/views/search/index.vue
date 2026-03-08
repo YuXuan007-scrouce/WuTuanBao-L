@@ -8,6 +8,8 @@
           shape="round"
           placeholder="台球团购附近"
           @search="triggerNewSearch"
+          @update:model-value="onInput"
+          @clear="onClear"
           class="flex-1"
         />
         <div class="search-btn" @click="triggerNewSearch">搜索</div>
@@ -53,7 +55,7 @@
       </div>
     </van-sticky>
 
-    <div v-if="!hasSearched" class="history-container">
+    <div v-if="!keyword" class="history-container">
       <div class="section-header">
         <span class="title">历史记录</span>
         <van-icon name="delete-o" @click="clearHistory" />
@@ -76,6 +78,25 @@
         <div class="history-tag">台球团购附近 <span class="hot">热</span></div>
         <div class="history-tag">茶百道</div>
       </div>
+    </div>
+
+    <div v-else-if="!hasSearched" class="suggestion-container">
+      <van-cell 
+        v-for="(item, index) in suggestions" 
+        :key="index" 
+        @click="onSuggestionClick(item)"
+        clickable
+      >
+        <template #title>
+          <div class="suggestion-item">
+            <van-icon name="search" class="search-icon" color="#999" size="16" />
+            <span class="text" v-html="highlightKeyword(item)"></span>
+          </div>
+        </template>
+        <template #right-icon>
+          <van-icon name="arrow-up" class="put-in-icon" color="#ccc" size="14" />
+        </template>
+      </van-cell>
     </div>
 
     <div v-else class="result-container">
@@ -102,7 +123,7 @@ import { useRouter } from 'vue-router';
 import { showToast } from 'vant';
 import ShopItem from '@/components/common/ShopItem.vue';
 
-import { getSearchResult, adaptShopData } from '@/api/search/index';
+import { getSearchResult, adaptShopData,getSearchSuggestion } from '@/api/search/index';
 import type { ShopDTO, SearchHistoryItem, SearchParams } from '@/api/search/type';
 
 
@@ -112,6 +133,10 @@ const router = useRouter();
 const keyword = ref('');
 const hasSearched = ref(false); 
 const activeTab = ref(0);
+
+// --- 联想词状态 ---
+const suggestions = ref<string[]>([]);
+let debounceTimer: any = null; // 用于防抖的定时器
 
 // --- 筛选状态 ---
 const currentSort = ref<'default' | 'comments' | 'rating'>('default');
@@ -140,6 +165,61 @@ onMounted(() => {
 });
 
 // ---------------------------------------------------------
+// 新增逻辑：处理输入法事件，获取补全词条
+// ---------------------------------------------------------
+const onInput = (val: string) => {
+  // 一旦用户修改了输入，就重置搜索状态，展示联想词
+  hasSearched.value = false;
+  
+  if (!val.trim()) {
+    suggestions.value = [];
+    return;
+  }
+
+  // 防抖处理：用户停止打字 300 毫秒后才发请求
+  if (debounceTimer) clearTimeout(debounceTimer);
+  
+  debounceTimer = setTimeout(async () => {
+    try {
+      const res = await getSearchSuggestion(val.trim());
+      if (res.success) {
+        suggestions.value = res.data || [];
+      }
+    } catch (error) {
+      console.error('获取联想词失败', error);
+    }
+  }, 300);
+};
+
+// 关键词高亮函数
+// 关键词高亮函数（加入防崩溃处理）
+const highlightKeyword = (text: string) => {
+  if (!keyword.value) return text;
+  
+  try {
+    // 将用户输入中的正则特殊字符转义，防止报错
+    const safeKeyword = keyword.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const reg = new RegExp(`(${safeKeyword})`, 'gi');
+    return text.replace(reg, `<span style="color: #ff4d4f;">$1</span>`);
+  } catch (error) {
+    // 如果高亮失败，兜底返回原文本，确保页面不白屏
+    return text;
+  }
+};
+// 清空输入框时
+const onClear = () => {
+  hasSearched.value = false;
+  suggestions.value = [];
+  resultList.value = [];
+};
+// 点击联想词条
+const onSuggestionClick = (item: string) => {
+  keyword.value = item;
+  triggerNewSearch();
+};
+
+
+// ---------------------------------------------------------
 // 交互逻辑：点击标签/历史记录
 // ---------------------------------------------------------
 const onTagClick = (tag: string) => {
@@ -160,6 +240,7 @@ const goBack = () => {
     currentSort.value = 'default';
     currentNear.value = undefined;
     resultList.value = [];
+    suggestions.value = [];
   } else {
     router.back();
   }
@@ -223,10 +304,7 @@ const onLoadMore = async () => {
     const res = await getSearchResult(params);
    
     // 1. 获取后端原始列表
-    // 根据你提供的响应结构：res.data.shopDocs
-    // 注意 axios 响应拦截器可能已经脱了一层 data，请根据实际情况调整
-    // 这里假设 getSearchResult 返回的是完整的 AxiosResponse，所以数据在 res.data.data.shopDocs
-    // 如果你的拦截器直接返回 body，那就是 res.data.shopDocs
+
     const rawList = res.data?.shopDocs || [];
     console.log('后端响应的数据',rawList);
 
@@ -272,6 +350,28 @@ const goToDetail = (item: any) => {
 .search-page {
   min-height: 100vh;
   background-color: #f7f8fa;
+}
+
+/* 新增：词条补全列表的样式 */
+.suggestion-container {
+  background: #fff;
+  min-height: calc(100vh - 54px);
+  
+  .suggestion-item {
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+    color: #333;
+    
+    .search-icon {
+      margin-right: 12px;
+    }
+  }
+
+  /* 旋转箭头图标，模拟抖音/美团的填入图标 */
+  .put-in-icon {
+    transform: rotate(-45deg);
+  }
 }
 
 .search-header {

@@ -1,5 +1,5 @@
 import http from "../../utils/http";
-import type { ShopDTO,SearchParams } from "./type"
+import type { ShopDTO,SearchParams,SearchSuggestionResult } from "./type"
 import { resolveAssetUrl } from '@/utils/asset'; // 图片url拼接
 
 // 2. 定义响应结构 (根据你后端的统一返回格式，这里假设是 data.list)
@@ -14,6 +14,13 @@ export function getSearchResult(params: SearchParams) {
   return http.get<SearchResponse>('/shopping/show/search', params);
 }
 
+/**
+ * 获取搜索联想词建议
+ * @param key 搜索关键词
+ */
+export function getSearchSuggestion(key: string) {
+  return http.get<SearchSuggestionResult>(`/shopping/show/search/suggestion?key=${key}`);
+}
 
 /**
  * 距离格式化工具
