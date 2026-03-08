@@ -25,6 +25,10 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
+import org.elasticsearch.search.suggest.Suggest;
+import org.elasticsearch.search.suggest.SuggestBuilder;
+import org.elasticsearch.search.suggest.SuggestBuilders;
+import org.elasticsearch.search.suggest.completion.CompletionSuggestion;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -315,6 +319,41 @@ public class ShopListServiceImpl extends ServiceImpl<ShopListMapper, Merchant> i
         return Result.ok(userCouponDTOList);
     }
 
+
+    @Override
+    public Result getSuggestions(String prefix) {
+        try {
+            // 1、准备Request
+            SearchRequest request = new SearchRequest("merchant");
+            //2、构建DSL 基于 suggestion 字段做补全查询
+            request.source().suggest(
+                    new SuggestBuilder().addSuggestion(
+                            "merchant_suggestions",                        // 自定义补全结果的名称
+                            SuggestBuilders.completionSuggestion("suggestion")  // 对应索引中 type=completion 的字段
+                                    .prefix(prefix)         // 用户输入的前缀词
+                                    .skipDuplicates(true)   // 跳过重复项
+                                    .size(10)               // 最多返回10条
+                    )
+            );
+
+            // 3、发送请求
+            SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+            //4、解析结果
+            Suggest suggest = response.getSuggest();
+            // 4.1 根据上面自定义名称取出补全结果
+            CompletionSuggestion completionSuggestion = suggest.getSuggestion("merchant_suggestions");
+            // 4.2遍历 options，提取文本
+            List<String> suggestionList =new ArrayList<>();
+            for (CompletionSuggestion.Entry.Option option : completionSuggestion.getOptions()){
+                String text = option.getText().toString();
+                suggestionList.add(text);
+            }
+
+            return Result.ok(suggestionList);
+        } catch (IOException e) {
+            throw new RuntimeException("词条补全查询失败", e);
+        }
+    }
 
 
     private static void buildBaiscQuery(ShopListParams shopParams, SearchRequest request) {

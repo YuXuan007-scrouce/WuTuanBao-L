@@ -19,6 +19,18 @@ public class ShopListController {
         return shopListService.search(shopParams);
     }
 
+    /**
+     * 搜索页面的IK分词器运用
+     * 词条补全功能
+     */
+    @GetMapping("/show/search/suggestion")
+    public Result getSuggestion(@RequestParam("key") String prefix){
+        if (prefix == null || prefix.isEmpty()){
+            return Result.ok("请求为空");
+        }
+        return shopListService.getSuggestions(prefix);
+    }
+
     // 根据id查询商家详情
     @GetMapping("/show/detail")
     public Result queryMDetail(Long id) {

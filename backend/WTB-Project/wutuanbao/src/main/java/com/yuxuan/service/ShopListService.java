@@ -20,4 +20,5 @@ public interface ShopListService {
     Result queryUserCoupon(Long merchantId);
 
 
+    Result getSuggestions(String prefix);
 }
