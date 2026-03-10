@@ -94,8 +94,7 @@ public class ShopListServiceImpl extends ServiceImpl<ShopListMapper, Merchant> i
 
     /**查询商家详情的接口+ 商家关联便签的接口
      */
-    @Override
-    public Result queryMDetail(Long id) {
+    public Result queryMDetail2(Long id) {
         // 先查merchant表的字段，再查询merchant_tag表的字段
         MerchantDTO merchantDTO;
         merchantDTO = shopListMapper.queryMDetail(id);
@@ -105,7 +104,13 @@ public class ShopListServiceImpl extends ServiceImpl<ShopListMapper, Merchant> i
         return Result.ok(merchantDTO);
     }
 
-    public Result queryMDetail2(Long id) {
+    /**
+     * 使用Redis的布隆过滤器
+     * @param id
+     * @return
+     */
+    @Override
+    public Result queryMDetail(Long id) {
        if (id == null || id <= 0) {
            return Result.fail("商家ID不能为null");
        }

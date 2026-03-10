@@ -30,6 +30,10 @@ public class RedisConstants {
      * 商家缓存key前缀
      */
     public static final String MERCHANT_CACHE_KEY_PREFIX = "cache:merchant:";
+    /**
+     * 笔记blog详情key
+     */
+    public static final String BLOG_CACHE_KEY_PREFIX = "cache:blog:";
 
     /**
      * 商家布隆过滤器名称
@@ -41,15 +45,20 @@ public class RedisConstants {
      */
     public static final Long CACHE_MERCHANT_TTL = 30L;
 
+    public static final Long CACHE_BLOG_TTL = 180L;
+
     /**
      * 互斥锁key前缀
      */
-    public static final String LOCK_MERCHANT_KEY = "lock:merchant:";
+    public static final String LOCK_MERCHANT_KEY = "WTB:lock:merchant:";
+
+    public static final String LOCK_BLOG_KEY = "WTB:lock:blog:";
 
     /**
      * 互斥锁过期时间（10秒）
      */
     public static final Long LOCK_MERCHANT_TTL = 10L;
+    public static final long LOCK_BLOG_TTL = 10L;
 
     /**
      * 布隆过滤器预期插入数量（根据实际商家数量调整）
@@ -60,4 +69,5 @@ public class RedisConstants {
      * 布隆过滤器误判率
      */
     public static final double BLOOM_FILTER_FALSE_PROBABILITY = 0.01;
+
 }

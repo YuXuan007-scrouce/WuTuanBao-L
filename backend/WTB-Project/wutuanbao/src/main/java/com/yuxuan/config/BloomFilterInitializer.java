@@ -1,5 +1,6 @@
 package com.yuxuan.config;
 
+import com.yuxuan.mapper.BlogMapper;
 import com.yuxuan.mapper.ShopListMapper;
 import com.yuxuan.utils.BloomFilterUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -23,10 +24,10 @@ public class BloomFilterInitializer implements ApplicationRunner {
     @Resource
     private ShopListMapper shopListMapper;
 
-//    @Resource
-//    private BloomFilterUtil bloomFilterUtil;
-      @Resource
-      private BloomFilterUtil bloomFilterUtil;
+    @Resource
+    private BloomFilterUtil bloomFilterUtil;
+    @Resource
+    private BlogMapper blogMapper;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -36,28 +37,39 @@ public class BloomFilterInitializer implements ApplicationRunner {
         long startTime = System.currentTimeMillis();
 
         try {
-            // 1. 查询所有商家ID
+            // 1. 查询所有商家ID、作品ID
             List<Long> merchantIds = shopListMapper.selectAllMerchantIds();
+            List<Long> blogIds = blogMapper.selectAllBlogIds();
 
-            if (merchantIds == null || merchantIds.isEmpty()) {
-                log.warn("数据库中没有商家数据，跳过布隆过滤器初始化");
-                return;
+            // 商家布隆过滤器
+            if (merchantIds != null && !merchantIds.isEmpty()) {
+                //批量添加到布隆过滤器
+                bloomFilterUtil.addMerchantIds(merchantIds);
+                log.info("商家布隆过滤器初始化完成，加载数量: {}", merchantIds.size());
+            } else {
+                log.warn("数据库中没有商家数据，跳过商家布隆过滤器初始化");
             }
 
-            // 2. 批量添加到布隆过滤器
-            bloomFilterUtil.addMerchantIds(merchantIds);
+            // 笔记布隆过滤器（独立过滤器）
+            if (blogIds != null && !blogIds.isEmpty()) {
+                bloomFilterUtil.addBlogIds(blogIds); // 对应独立的 blog 过滤器
+                log.info("笔记布隆过滤器初始化完成，加载数量: {}", blogIds.size());
+            } else {
+                log.warn("数据库中没有笔记数据，跳过笔记布隆过滤器初始化");
+            }
+
 
             long endTime = System.currentTimeMillis();
             long cost = endTime - startTime;
 
-            log.info("商家布隆过滤器初始化完成！");
-            log.info("- 加载商家数量: {}", merchantIds.size());
+            log.info("布隆过滤器初始化完成！");
+            log.info("- 加载商家、笔记数量: {}", merchantIds.size());
             log.info("- 耗时: {} ms", cost);
             log.info("- 当前布隆过滤器元素数: {}", bloomFilterUtil.getCount());
 
 
         } catch (Exception e) {
-            log.error("初始化商家布隆过滤器失败", e);
+            log.error("初始化商家、blog笔记布隆过滤器失败", e);
             throw e;
         }
     }

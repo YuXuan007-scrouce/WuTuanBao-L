@@ -41,4 +41,24 @@
         </foreach>
         )
     </select>
+    <select id="selectAllBlogIds" resultType="java.lang.Long">
+        select
+        id
+        from tb_blog
+    </select>
+    <select id="queryBlogetail" resultType="com.yuxuan.dto.BlogDTO">
+        select
+        tb.id,
+        tb.user_id AS userId,
+        tb.title,
+        tb.images,
+        tb.content,
+        tb.liked,
+        tb.collection,
+        tb.comments,
+        tb.create_time AS createTime,
+        tb.address
+        from tb_blog tb
+        where id = #{id}
+    </select>
 </mapper>

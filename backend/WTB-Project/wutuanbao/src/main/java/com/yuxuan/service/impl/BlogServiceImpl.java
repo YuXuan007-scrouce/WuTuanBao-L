@@ -2,6 +2,7 @@ package com.yuxuan.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yuxuan.dto.*;
 import com.yuxuan.entity.Blog;
@@ -14,17 +15,17 @@ import com.yuxuan.service.IBlogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yuxuan.service.IFollowService;
 import com.yuxuan.service.IUserService;
+import com.yuxuan.utils.BloomFilterUtil;
 import com.yuxuan.utils.SystemConstants;
 import com.yuxuan.utils.UserHolder;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
-
+import com.yuxuan.utils.RedisConstants;
 import javax.annotation.Resource;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.yuxuan.utils.RedisConstants.*;
@@ -33,10 +34,8 @@ import static com.yuxuan.utils.RedisConstants.*;
  * <p>
  *  服务实现类
  * </p>
- *
- * @author 虎哥
- * @since 2021-12-22
  */
+@Slf4j
 @Service
 public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IBlogService {
 
@@ -50,6 +49,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     private BlogDetailMapper blogDetailMapper;
     @Resource
     private BlogMapper blogMapper;
+
+    @Resource
+    private BloomFilterUtil bloomFilterUtil;
+
+
+    private final Random random = new Random();
 
 
     //首页展示的Blog分页查询
@@ -225,10 +230,26 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return Result.ok(r);
     }
 
-    //这里为了不干扰原项目运行，
+    //与商铺一致使用Redis的布隆过滤器
     @Override
     public Result queryBlogDetailById(Long blogId) {
-        BlogDTO blog = blogDetailMapper.selectById(blogId);
+        if (blogId == null) {
+            return Result.fail("blog不存在");
+        }
+        // 1. 布隆过滤器判断（防止缓存穿透）
+        if (!bloomFilterUtil.mightContain2(blogId)) {
+            log.warn("布隆过滤器判断bolg笔记不存在，merchantId: {}", blogId);
+            return Result.fail("该商家不存在");
+        }
+        //2、使用互斥锁查询缓存(解决缓存击穿)
+        BlogDTO blog = queryWithMutex(blogId);
+        // 3. 判断是否存在
+        if (blog == null) {
+            log.info("博客笔记不存在，blogId: {}", blogId);
+            return Result.fail("该博客笔记不存在");
+        }
+
+        log.info("查询笔记成功，blogId: {}, blogTitle: {}", blogId, blog.getTitle());
         return Result.ok(blog);
     }
 
@@ -336,5 +357,122 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         blogWithAuthor.setIsLike(score != null);
     }
 
+    /**
+     * 使用互斥锁解决缓存击穿问题
+     * @param id blogID
+     * @return 笔记内容主体部分
+     */
+    private BlogDTO queryWithMutex(Long id) {
+        String blogKey = RedisConstants.BLOG_CACHE_KEY_PREFIX + id;
 
+        // 1. 从Redis查询缓存
+        String blogJson = stringRedisTemplate.opsForValue().get(blogKey);
+
+        // 2. 判断缓存是否命中
+        if (StrUtil.isNotBlank(blogJson)) {
+            log.debug("缓存命中，blogId: {}",id);
+            return JSONUtil.toBean(blogJson, BlogDTO.class);
+        }
+
+        // 3. 判断命中的是否是空值（防止缓存穿透）
+        if (blogJson != null) {
+            // 命中空值，说明数据库中不存在
+            log.debug("缓存命中空值，merchantId: {}", id);
+            return null;
+        }
+        // 4. 未命中缓存，需要重建缓存
+        log.debug("缓存未命中，准备查询数据库，merchantId: {}", id);
+
+        String lockKey = RedisConstants.LOCK_BLOG_KEY + id;
+        BlogDTO blogDTO = null;
+
+        try {
+            // 4.1 尝试获取互斥锁
+            boolean isLock = tryLock(lockKey);
+
+            // 4.2 判断是否获取成功
+            if (!isLock) {
+                // 获取锁失败，说明有其他线程在重建缓存
+                log.debug("获取互斥锁失败，等待重试，blogId: {}", id);
+
+                // 休眠后重试
+                Thread.sleep(50);
+                return queryWithMutex(id);
+            }
+
+            // 4.3 获取锁成功，Double Check缓存是否存在
+            log.debug("获取互斥锁成功，Double Check缓存，blogId: {}", id);
+            blogJson = stringRedisTemplate.opsForValue().get(blogKey);
+
+            if (StrUtil.isNotBlank(blogJson)) {
+                // 其他线程已经重建了缓存
+                log.debug("Double Check发现缓存已存在，blogId: {}", id);
+                return JSONUtil.toBean(blogJson, BlogDTO.class);
+            }
+
+            // 4.4 查询数据库
+            log.debug("开始查询数据库，merchantId: {}", id);
+            blogDTO = blogMapper.queryBlogetail(id);
+
+            // 4.5 数据库中不存在，缓存空值（防止缓存穿透）
+            if (blogDTO == null) {
+                log.warn("数据库中笔记不存在，缓存空值，blogId: {}", id);
+
+                stringRedisTemplate.opsForValue().set(
+                        blogKey,
+                        "",
+                        RedisConstants.CACHE_NULL_TTL,
+                        TimeUnit.MINUTES
+                );
+                return null;
+            }
+
+            // 4.6 数据库中存在，写入Redis缓存
+            // 添加随机过期时间，防止缓存雪崩
+            long randomExpire = RedisConstants.CACHE_BLOG_TTL + random.nextInt(5);
+
+            stringRedisTemplate.opsForValue().set(
+                    blogKey,
+                    JSONUtil.toJsonStr(blogDTO),
+                    randomExpire,
+                    TimeUnit.MINUTES
+            );
+
+            log.info("缓存重建成功，merchantId: {}, 过期时间: {} 分钟", id, randomExpire);
+
+        } catch (InterruptedException e) {
+            log.error("查询商家详情时发生异常，merchantId: {}", id, e);
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("查询商家详情失败", e);
+        } finally {
+            // 5. 释放互斥锁
+            unlock(lockKey);
+            log.debug("释放互斥锁，merchantId: {}", id);
+        }
+
+        return blogDTO;
+    }
+
+    /**
+     * 尝试获取互斥锁
+     * 使用Redis的SETNX命令实现
+     *
+     * @param key 锁的key
+     * @return true-获取成功, false-获取失败
+     */
+    private boolean tryLock(String key) {
+        Boolean flag = stringRedisTemplate.opsForValue()
+                .setIfAbsent(key, "1", RedisConstants.LOCK_BLOG_TTL, TimeUnit.SECONDS);
+        // 防止自动拆箱时出现空指针
+        return Boolean.TRUE.equals(flag);
+    }
+
+    /**
+     * 释放互斥锁
+     *
+     * @param key 锁的key
+     */
+    private void unlock(String key) {
+        stringRedisTemplate.delete(key);
+    }
 }

@@ -1,5 +1,6 @@
 package com.yuxuan.mapper;
 
+import com.yuxuan.dto.BlogDTO;
 import com.yuxuan.dto.BlogWithAuthorDTO;
 import com.yuxuan.dto.NoteDTO;
 import com.yuxuan.entity.Blog;
@@ -25,5 +26,7 @@ public interface BlogMapper extends BaseMapper<Blog> {
     int createNote(NoteDTO noteDTO);
 
 
+    List<Long> selectAllBlogIds();
 
+    BlogDTO queryBlogetail(Long id);
 }

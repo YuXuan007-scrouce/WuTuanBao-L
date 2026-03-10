@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import java.util.List;
 
 /**
  * 布隆过滤器工具类
@@ -66,6 +67,19 @@ public class BloomFilterUtil {
             log.info("批量添加商家ID到布隆过滤器，数量: {}", merchantIds.size());
         }
     }
+    /**
+     * 批量添加blog笔记ID到布隆过滤器
+     */
+    public void addBlogIds(java.util.Collection<Long> blogIds){
+        if (blogIds != null && !blogIds.isEmpty()) {
+            for (Long blogId : blogIds) {
+                if (blogId != null) {
+                    merchantBloomFilter.add(blogId);
+                }
+            }
+            log.info("批量添加blog笔记ID到布隆过滤器，数量: {}", blogIds.size());
+        }
+    }
 
     /**
      * 判断商家ID是否可能存在
@@ -78,6 +92,18 @@ public class BloomFilterUtil {
         }
         boolean result = merchantBloomFilter.contains(merchantId);
         log.debug("布隆过滤器检查商家ID: {}, 结果: {}", merchantId, result ? "可能存在" : "不存在");
+        return result;
+    }
+    /**
+     * 判断blogID是否可能存在
+     * @return true-可能存在, false-一定不存在
+     */
+    public boolean mightContain2(Long blogId) {
+        if (blogId == null) {
+            return false;
+        }
+        boolean result = merchantBloomFilter.contains(blogId);
+        log.debug("布隆过滤器检查blogID: {}, 结果: {}", blogId, result ? "可能存在" : "不存在");
         return result;
     }
 
@@ -96,4 +122,7 @@ public class BloomFilterUtil {
     public RBloomFilter<Long> getMerchantBloomFilter() {
         return merchantBloomFilter;
     }
+
+
+
 }
