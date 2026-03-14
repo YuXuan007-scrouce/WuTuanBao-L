@@ -40,6 +40,15 @@ public class RabbitMQConfig {
                 .durable(MqConstants.ORDER_TIMEOUT_QUEUE)  // 持久化
                 .build();
     }
+    /**
+     *  优惠卷活动下架的队列
+     */
+    @Bean
+    public Queue couponRemovalQueue(){
+        return QueueBuilder
+                .durable(MqConstants.COUPON_REMOVAL_QUEUE)
+                .build();
+    }
 
     /**
      * 绑定队列到延迟交换机
@@ -50,6 +59,18 @@ public class RabbitMQConfig {
                 .bind(orderTimeoutQueue)
                 .to(orderDelayExchange)
                 .with(MqConstants.ORDER_TIMEOUT_ROUTING_KEY)
+                .noargs();
+    }
+
+    /**
+     * 优惠卷下架队列绑定到延迟交换机
+     */
+    @Bean
+    public Binding couponRemovalBinding(Queue couponRemovalQueue, CustomExchange orderDelayExchange) {
+        return BindingBuilder
+                .bind(couponRemovalQueue)
+                .to(orderDelayExchange)
+                .with(MqConstants.COUPON_REMOVAL_ROUTING_KEY)
                 .noargs();
     }
 }

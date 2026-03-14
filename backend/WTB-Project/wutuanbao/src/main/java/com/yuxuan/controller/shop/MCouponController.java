@@ -19,7 +19,6 @@ public class MCouponController {
 
     @PostMapping("/seckill/add")
     public Result addSeckillCoupon(@RequestBody MCoupon seckillCoupon) {
-        couponService.addSeckillCoupon(seckillCoupon);
-        return Result.ok(seckillCoupon.getId());
+        return couponService.addSeckillCoupon(seckillCoupon);
     }
 }

@@ -20,6 +20,7 @@ public class BloomFilterUtil {
     private RedissonClient redissonClient;
 
     private RBloomFilter<Long> merchantBloomFilter;
+    private RBloomFilter<Long> blogBloomFilter;
 
     /**
      * 初始化布隆过滤器
@@ -28,11 +29,16 @@ public class BloomFilterUtil {
     @PostConstruct
     public void init() {
         merchantBloomFilter = redissonClient.getBloomFilter(RedisConstants.MERCHANT_BLOOM_FILTER);
+        blogBloomFilter = redissonClient.getBloomFilter(RedisConstants.BLOG_BLOOM_FILTER);
 
         // 初始化布隆过滤器
         // expectedInsertions: 预期插入的数据量
         // falseProbability: 误判率（0.01表示1%的误判率）
         merchantBloomFilter.tryInit(
+                RedisConstants.BLOOM_FILTER_EXPECTED_INSERTIONS,
+                RedisConstants.BLOOM_FILTER_FALSE_PROBABILITY
+        );
+        blogBloomFilter.tryInit(
                 RedisConstants.BLOOM_FILTER_EXPECTED_INSERTIONS,
                 RedisConstants.BLOOM_FILTER_FALSE_PROBABILITY
         );
@@ -74,7 +80,7 @@ public class BloomFilterUtil {
         if (blogIds != null && !blogIds.isEmpty()) {
             for (Long blogId : blogIds) {
                 if (blogId != null) {
-                    merchantBloomFilter.add(blogId);
+                    blogBloomFilter.add(blogId);
                 }
             }
             log.info("批量添加blog笔记ID到布隆过滤器，数量: {}", blogIds.size());
@@ -102,7 +108,7 @@ public class BloomFilterUtil {
         if (blogId == null) {
             return false;
         }
-        boolean result = merchantBloomFilter.contains(blogId);
+        boolean result = blogBloomFilter.contains(blogId);
         log.debug("布隆过滤器检查blogID: {}, 结果: {}", blogId, result ? "可能存在" : "不存在");
         return result;
     }
@@ -116,13 +122,12 @@ public class BloomFilterUtil {
     }
 
     /**
-     * 获取布隆过滤器实例
-     * @return 布隆过滤器
+     * 单个添加blog笔记ID到布隆过滤器（发布笔记时调用）
      */
-    public RBloomFilter<Long> getMerchantBloomFilter() {
-        return merchantBloomFilter;
+    public void addBlogId(Long blogId) {
+        if (blogId != null) {
+            blogBloomFilter.add(blogId); // 对应 blog 的过滤器
+            log.info("添加blog笔记ID到布隆过滤器: {}", blogId);
+        }
     }
-
-
-
 }

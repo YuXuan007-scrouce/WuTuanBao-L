@@ -9,9 +9,11 @@ import com.yuxuan.entity.Follow;
 import com.yuxuan.mapper.BlogMapper;
 import com.yuxuan.service.CreateVService;
 import com.yuxuan.service.IFollowService;
+import com.yuxuan.utils.BloomFilterUtil;
 import com.yuxuan.utils.UserHolder;
 import io.minio.*;
 import io.minio.errors.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,6 +32,7 @@ import java.util.UUID;
 import static com.yuxuan.utils.RedisConstants.FEED_FOLLOW_KEY;
 import static com.yuxuan.utils.RedisConstants.FEED_RECOMMEND_KEY;
 
+@Slf4j
 @Service
 public class CreateVServiceImpl extends ServiceImpl<BlogMapper, Blog> implements CreateVService {
 
@@ -43,6 +46,8 @@ public class CreateVServiceImpl extends ServiceImpl<BlogMapper, Blog> implements
    private StringRedisTemplate stringRedisTemplate;
    @Resource
    private IFollowService followService;
+    @Resource
+    private BloomFilterUtil bloomFilterUtil;
 
     @Override
     public Result createNote(List<MultipartFile> images,MultipartFile video, NoteDTO noteDTO) throws ServerException, InsufficientDataException, ErrorResponseException, IOException, NoSuchAlgorithmException, InvalidKeyException, InvalidResponseException, XmlParserException, InternalException {
@@ -110,10 +115,18 @@ public class CreateVServiceImpl extends ServiceImpl<BlogMapper, Blog> implements
         noteDTO.setCreateTime(LocalDateTime.now());
         //5、写入数据库
         int note = blogMapper.createNote(noteDTO);
-        //6、写入Redis(写扩散)
-        if (note <= 0) {
-          Result.fail("上传失败了！");
+        if (note<=0){
+            return Result.fail("上传失败！");
         }
+        // 6. DB写入成功后，同步写入布隆过滤器
+        try {
+            bloomFilterUtil.addBlogId(noteDTO.getId());
+        } catch (Exception e) {
+            // 布隆过滤器写入失败不影响主流程，只告警
+            // 兜底：下次项目重启会从DB重新全量加载
+            log.warn("笔记ID写入布隆过滤器失败，blogId: {}", noteDTO.getId(), e);
+        }
+        //7、写入Redis(Feed流的写扩散，推送到粉丝的Redis邮箱)
         saveNote(userid,noteDTO.getId());
         return Result.ok("成功上传！");
     }

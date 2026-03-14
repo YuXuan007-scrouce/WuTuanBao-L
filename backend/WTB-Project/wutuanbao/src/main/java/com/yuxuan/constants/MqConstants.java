@@ -16,4 +16,7 @@ public class MqConstants {
      * 路由key
      */
     public static final String ORDER_TIMEOUT_ROUTING_KEY = "order.timeout";
+    // 优惠券自动下架
+    public static final String COUPON_REMOVAL_QUEUE = "coupon.removal.queue";
+    public static final String COUPON_REMOVAL_ROUTING_KEY = "coupon.removal";
 }

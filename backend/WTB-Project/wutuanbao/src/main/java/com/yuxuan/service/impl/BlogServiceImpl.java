@@ -248,6 +248,11 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             log.info("博客笔记不存在，blogId: {}", blogId);
             return Result.fail("该博客笔记不存在");
         }
+        // 从Redis的计数器中查询, 覆盖原值，如果没有被点赞，就使用旧数据兜底
+        String likedStr   = stringRedisTemplate.opsForValue().get(BLOG_LIKED_COUNT_KEY + blogId);
+        String collectStr = stringRedisTemplate.opsForValue().get(BLOG_COLLECT_COUNT_KEY + blogId);
+        if (likedStr != null)   blog.setLiked(Integer.parseInt(likedStr));
+        if (collectStr != null) blog.setCollection(Integer.parseInt(collectStr));
 
         log.info("查询笔记成功，blogId: {}, blogTitle: {}", blogId, blog.getTitle());
         return Result.ok(blog);
@@ -306,6 +311,10 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         noteActionVo.setLiked(likes);
         Integer collections = blogMapper.queryCollectionById(id);
         noteActionVo.setCollection(collections);
+
+        //  最新计数同步到 Redis，供详情页读取
+        stringRedisTemplate.opsForValue().set(BLOG_LIKED_COUNT_KEY + id, likes.toString());
+        stringRedisTemplate.opsForValue().set(BLOG_COLLECT_COUNT_KEY + id, collections.toString());
         return Result.ok(noteActionVo);
     }
 

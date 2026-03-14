@@ -31,4 +31,5 @@ public class MCoupon implements Serializable {
     private LocalDateTime beginTime;
     private LocalDateTime endTime;
     private Integer status;   //该卷状态，1：上架中，2：下架了，3：过期了
+    private LocalDateTime removalTime;    // 活动下架时间
 }

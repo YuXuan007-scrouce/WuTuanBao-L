@@ -288,7 +288,8 @@ public class ShopListServiceImpl extends ServiceImpl<ShopListMapper, Merchant> i
         UserDTO user = UserHolder.getUser();
         Long userId = user == null ? null : user.getId();
         List<MCouponDTO> couponDTOList;
-        couponDTOList = shopListMapper.queryCoupon(userId,merchantId);
+        long status = 1;  //只查询使用的
+        couponDTOList = shopListMapper.queryCoupon(userId,merchantId,status);
         if (couponDTOList == null) {
             Result.fail("该商家暂无优惠卷活动");
         }

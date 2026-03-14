@@ -14,7 +14,7 @@ public interface ShopListMapper extends BaseMapper<Merchant> {
 
     List<MCommentDTO> queryComment(Long merchantId);
 
-    List<MCouponDTO> queryCoupon(Long userId, Long merchantId);
+    List<MCouponDTO> queryCoupon(Long userId, Long merchantId,long status);
 
     GroupPayDTO queryGroupProduct(Long id);
 

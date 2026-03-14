@@ -38,7 +38,11 @@ public class RedisConstants {
     /**
      * 商家布隆过滤器名称
      */
-    public static final String MERCHANT_BLOOM_FILTER = "merchant:bloom:filter";
+    public static final String MERCHANT_BLOOM_FILTER = "WTB:bloom:merchant:filter";
+    /**
+     *  笔记布隆过滤器名称
+     */
+    public static final String BLOG_BLOOM_FILTER = "WTB:bloom:blog:filter";
 
     /**
      * 缓存过期时间（30分钟）
@@ -69,5 +73,11 @@ public class RedisConstants {
      * 布隆过滤器误判率
      */
     public static final double BLOOM_FILTER_FALSE_PROBABILITY = 0.01;
+
+    /**
+     * 点赞、收藏-计数器
+     */
+    public static final String BLOG_LIKED_COUNT_KEY   = "blog:liked:count:";   // blog:liked:count:{blogId}
+    public static final String BLOG_COLLECT_COUNT_KEY = "blog:collected:count:"; // blog:collect:count:{blogId}
 
 }

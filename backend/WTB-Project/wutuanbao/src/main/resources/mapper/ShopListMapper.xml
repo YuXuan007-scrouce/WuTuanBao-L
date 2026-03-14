@@ -68,7 +68,7 @@
         LEFT JOIN user_coupon uc
         ON mc.id = uc.coupon_id
         AND uc.user_id = #{userId}
-        WHERE mc.merchant_id = #{merchantId}
+        WHERE mc.merchant_id = #{merchantId} and mc.status = #{status}
     </select>
     <select id="queryGroupProduct" resultType="com.yuxuan.dto.GroupPayDTO">
         select
